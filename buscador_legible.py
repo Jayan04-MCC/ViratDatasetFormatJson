@@ -1,48 +1,18 @@
 #!/usr/bin/env python3
-import subprocess
-from prettytable import PrettyTable
-
-def buscar_y_formatear(objeto_buscado):
-    comando = "hdfs dfs -cat /indice_objetos_mejorado/part-*"
-    resultado = subprocess.getoutput(comando)
-    
-    lineas = resultado.strip().splitlines()
-    
-    camaras_encontradas = []
-    objeto_actual = None
-    
-    for linea in lineas:
-        linea = linea.strip()
-        if not linea:
-            continue
+def parse_inverted_index_line(line):
+    try:
+        keyword, videos_str = line.strip().split(' ', 1)
+        videos = videos_str.split(',')
         
-        if not ',' in linea:
-            # Esta línea es el nombre del objeto
-            objeto_actual = linea.strip()
-        else:
-            # Esta línea contiene cámaras
-            if objeto_actual and objeto_actual.lower() == objeto_buscado.lower():
-                camaras = [c.strip() for c in linea.split(',')]
-                camaras_encontradas.extend(camaras)
-    
-    if not camaras_encontradas:
-        print(f"\n🔍 No se encontró el objeto '{objeto_buscado}' en el índice.")
-        return
+        print(f"🔍 Palabra clave: {keyword}")
+        print("📹 Videos relacionados:")
+        for i, video in enumerate(videos, 1):
+            print(f"  {i}. {video}")
+    except ValueError:
+        print("❌ Formato no válido en la línea.")
 
-    # Crear tabla
-    tabla = PrettyTable()
-    tabla.title = f"📌 Cámaras con el objeto: {objeto_buscado}"
-    tabla.field_names = ["#", "ID Cámara", "Detalles"]
-    tabla.align = "l"
+# Ejemplo: línea de salida del comando
+linea_salida = "Animal VIRAT_S_000204_04_000738_000977,VIRAT_S_040003_06_001441_001518"
 
-    for idx, camara in enumerate(sorted(set(camaras_encontradas)), 1):
-        partes = camara.strip().split('_')
-        detalle = f"Secuencia: {partes[-2]}-{partes[-1]}" if len(partes) > 4 else "Sin segmentos"
-        tabla.add_row([idx, camara.strip(), detalle])
+parse_inverted_index_line(linea_salida)
 
-    print(tabla)
-    print(f"\n📊 Total de cámaras encontradas: {len(set(camaras_encontradas))}")
-
-if __name__ == "__main__":
-    objeto = input("\nIngrese el objeto a buscar (ej: Tree, Vehicle, Person): ").strip()
-    buscar_y_formatear(objeto)
