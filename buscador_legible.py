@@ -2,35 +2,46 @@
 import subprocess
 from prettytable import PrettyTable
 
-def buscar_y_formatear(objeto):
-    # Obtener datos del índice desde HDFS
-    comando = f"hdfs dfs -cat /indice_objetos_mejorado/part-* | grep -i '{objeto}'"
+def buscar_y_formatear(objeto_buscado):
+    comando = "hdfs dfs -cat /indice_objetos_mejorado/part-*"
     resultado = subprocess.getoutput(comando)
     
-    if not resultado:
-        print(f"\n🔍 No se encontró el objeto '{objeto}' en el índice.")
+    lineas = resultado.strip().splitlines()
+    
+    camaras_encontradas = []
+    objeto_actual = None
+    
+    for linea in lineas:
+        linea = linea.strip()
+        if not linea:
+            continue
+        
+        if not ',' in linea:
+            # Esta línea es el nombre del objeto
+            objeto_actual = linea.strip()
+        else:
+            # Esta línea contiene cámaras
+            if objeto_actual and objeto_actual.lower() == objeto_buscado.lower():
+                camaras = [c.strip() for c in linea.split(',')]
+                camaras_encontradas.extend(camaras)
+    
+    if not camaras_encontradas:
+        print(f"\n🔍 No se encontró el objeto '{objeto_buscado}' en el índice.")
         return
-
-    # Procesar la línea del índice (ej: "Tree\tVIRAT_S_0001,VIRAT_S_0002")
-    objeto, lista_camaras = resultado.split('\t')
-    camaras = lista_camaras.split(',')
 
     # Crear tabla
     tabla = PrettyTable()
-    tabla.title = f"📌 Cámaras con el objeto: {objeto.strip()}"
+    tabla.title = f"📌 Cámaras con el objeto: {objeto_buscado}"
     tabla.field_names = ["#", "ID Cámara", "Detalles"]
     tabla.align = "l"
 
-    # Agregar filas (agrupando cámaras similares)
-    for idx, camara in enumerate(sorted(set(camaras)), 1):
-        # Extraer segmento numérico para cámaras tipo VIRAT_S_XXXXX_XX_XXXXXX_XXXXXX
-        partes = camara.split('_')
+    for idx, camara in enumerate(sorted(set(camaras_encontradas)), 1):
+        partes = camara.strip().split('_')
         detalle = f"Secuencia: {partes[-2]}-{partes[-1]}" if len(partes) > 4 else "Sin segmentos"
         tabla.add_row([idx, camara.strip(), detalle])
 
-    # Mostrar resultados
     print(tabla)
-    print(f"\n📊 Total de cámaras encontradas: {len(camaras)}")
+    print(f"\n📊 Total de cámaras encontradas: {len(set(camaras_encontradas))}")
 
 if __name__ == "__main__":
     objeto = input("\nIngrese el objeto a buscar (ej: Tree, Vehicle, Person): ").strip()
